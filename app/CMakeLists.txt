@@ -1,4 +1,4 @@
-add_executable(app "src/main.cpp" "src/log.h" "src/app.h" "src/app.cpp")
+add_executable(app "src/main.cpp" "src/log.h" "src/app.h" "src/app.cpp" "src/graphics/renderer.h")
 
 set_property(TARGET app PROPERTY CXX_STANDARD 17)
 
@@ -27,11 +27,18 @@ file(GLOB SHADER_FILES
 add_custom_target(shaders)
 add_custom_target(shader_directory ALL COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_BINARY_DIR}")
 
+find_program(shader_compiler "glslc")
+if(shader_compiler)
+	set(SHADER_COMPILER "glslc")
+else()
+	set(SHADER_COMPILER "${CMAKE_SOURCE_DIR}/bin/glslc")
+endif()
+
 foreach(FILE ${SHADER_FILES})
 	get_filename_component(FILENAME ${FILE} NAME)
 	add_custom_command(
 		TARGET shaders
-		COMMAND "${CMAKE_SOURCE_DIR}/bin/glslc.exe" "--target-env=opengl" ${FILE} -o "${SHADER_BINARY_DIR}/${FILENAME}.spv"
+	COMMAND ${SHADER_COMPILER} "--target-env=opengl" ${FILE} -o "${SHADER_BINARY_DIR}/${FILENAME}.spv"
 		DEPENDS ${FILE}
 		COMMENT "Compiling shader: ${FILENAME}"
 	)
