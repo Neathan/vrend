@@ -29,6 +29,11 @@ void App::init() {
 	m_window = glfwCreateWindow(m_width, m_height, "Vulkan renderer", nullptr, nullptr);
 
 	glfwSetWindowUserPointer(m_window, this);
+
+	m_renderer.init(AppInfo{
+		"Vulkan renderer",
+		1, 0, 0, 0
+	}, m_window);
 }
 
 void App::start() {

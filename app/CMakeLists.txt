@@ -1,4 +1,4 @@
-add_executable(app "src/main.cpp" "src/log.h" "src/app.h" "src/app.cpp" "src/graphics/renderer.h")
+add_executable(app "src/main.cpp" "src/log.h" "src/app.h" "src/app.cpp" "src/graphics/renderer.h" "src/graphics/renderer.h" "src/graphics/renderer.cpp" "src/graphics/validation.h" "src/graphics/validation.cpp" "src/appinfo.h" "src/graphics/extensions.h" "src/graphics/extensions.cpp" "src/graphics/device.h" "src/graphics/device.cpp")
 
 set_property(TARGET app PROPERTY CXX_STANDARD 17)
 

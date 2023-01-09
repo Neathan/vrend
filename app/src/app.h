@@ -2,6 +2,9 @@
 
 #include <GLFW/glfw3.h>
 
+#include "graphics/renderer.h"
+
+
 class App {
 public:
 	App(int width, int height)
@@ -16,4 +19,6 @@ private:
 	int m_width, m_height;
 
 	GLFWwindow *m_window = nullptr;
+
+	Renderer m_renderer{};
 };
