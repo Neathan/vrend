@@ -8,8 +8,10 @@
 
 
 
-Device::~Device() {
-	vkDestroyDevice(m_device, nullptr);
+void Device::destroy() {
+	if (m_device) {
+		vkDestroyDevice(m_device, nullptr);
+	}
 }
 
 void Device::init(VkInstance instance, VkSurfaceKHR surface, const Validator& validator, const Extensions& deviceExtensions) {
@@ -29,7 +31,7 @@ void Device::init(VkInstance instance, VkSurfaceKHR surface, const Validator& va
 
 
 	// Create logical device
-	QueueFamilyIndices indices = findQueueFamilies(m_physicalDevice, surface);
+	QueueFamilyIndices indices = findQueueFamilies(surface);
 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 	std::set<uint32_t> uniqueQueueFamilies = {
@@ -116,15 +118,15 @@ VkPhysicalDevice Device::selectPhysicalDevice(VkInstance instance, VkSurfaceKHR 
 	return VK_NULL_HANDLE;
 }
 
-QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
+QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) const {
 	QueueFamilyIndices indices;
 
 	// Assign index to queue families that could be found
 	uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
 
 	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
 
 	int i = 0;
 	for (const auto &queueFamily : queueFamilies) {
@@ -133,7 +135,7 @@ QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice device, VkSurfaceK
 		}
 
 		VkBool32 presentSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
 
 		if (presentSupport) {
 			indices.presentFamily = i;

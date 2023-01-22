@@ -4,6 +4,9 @@
 
 #include <stdexcept>
 
+#include "data/model.h"
+#include "tools/convert_model.h"
+
 
 App::~App() {
 	if (!m_window) {
@@ -37,8 +40,20 @@ void App::init() {
 }
 
 void App::start() {
+	auto modelSource = convertToModelSource("assets/models/gltf/monkey.glb");
+	auto model = Model::load(*modelSource.get(), m_renderer);
+
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
+		m_renderer.newFrame();
+		m_renderer.prepare();
+
+		m_renderer.addModelCommand(model.get());
+
+		m_renderer.execute();
 	}
+
+	// Wait for queue completion, ensures clean shutdown
+	m_renderer.waitForIdle();
 }
 
