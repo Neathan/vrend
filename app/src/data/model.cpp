@@ -6,21 +6,7 @@
 #include <unordered_map>
 
 #include "log.h"
-
-
-uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, const Device &device) {
-	VkPhysicalDeviceMemoryProperties memProperties;
-	vkGetPhysicalDeviceMemoryProperties(device.getPhysicalDevice(), &memProperties);
-
-	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-		if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-			return i;
-		}
-	}
-
-	LOG_ERROR("Failed to find suitable memory type");
-	throw std::runtime_error("Failed to find suitable memory type");
-}
+#include "graphics/memory.h"
 
 
 // void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, const Device &device, VkBuffer &buffer, VkDeviceMemory &bufferMemory) {
@@ -100,23 +86,41 @@ uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, c
 // }
 
 
-std::array<VkVertexInputBindingDescription, 1> Model::getBindingDescription() {
-	std::array<VkVertexInputBindingDescription, 1>  bindingDescriptions{};
+std::array<VkVertexInputBindingDescription, 3> Model::getBindingDescription() {
+	std::array<VkVertexInputBindingDescription, 3>  bindingDescriptions{};
 
 	bindingDescriptions[0].binding = 0;
 	bindingDescriptions[0].stride = sizeof(float) * 3;
 	bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
+	bindingDescriptions[1].binding = 1;
+	bindingDescriptions[1].stride = sizeof(float) * 2;
+	bindingDescriptions[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	bindingDescriptions[2].binding = 2;
+	bindingDescriptions[2].stride = sizeof(float) * 3;
+	bindingDescriptions[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
 	return bindingDescriptions;
 }
 
-std::array<VkVertexInputAttributeDescription, 1> Model::getAttributeDescriptions() {
-	std::array<VkVertexInputAttributeDescription, 1> attributeDescriptions{};
+std::array<VkVertexInputAttributeDescription, 3> Model::getAttributeDescriptions() {
+	std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 
 	attributeDescriptions[0].binding = 0;
 	attributeDescriptions[0].location = 0;
 	attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 	attributeDescriptions[0].offset = 0;
+
+	attributeDescriptions[1].binding = 1;
+	attributeDescriptions[1].location = 1;
+	attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+	attributeDescriptions[1].offset = 0;
+
+	attributeDescriptions[2].binding = 2;
+	attributeDescriptions[2].location = 2;
+	attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[2].offset = 0;
 
 	return attributeDescriptions;
 }

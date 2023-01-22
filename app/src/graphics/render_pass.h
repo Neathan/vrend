@@ -15,5 +15,4 @@ private:
 	Device m_device;
 
 	VkRenderPass m_renderPass;
-
 };

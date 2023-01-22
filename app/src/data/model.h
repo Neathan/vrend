@@ -14,8 +14,8 @@
 
 class Model {
 public:
-	static std::array<VkVertexInputBindingDescription, 1> getBindingDescription();
-	static std::array<VkVertexInputAttributeDescription, 1> getAttributeDescriptions();
+	static std::array<VkVertexInputBindingDescription, 3> getBindingDescription();
+	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
 
 	static std::unique_ptr<Model> load(const ModelSource& modelSource, const Renderer &renderer);
 
@@ -26,6 +26,7 @@ public:
 	~Model();
 
 	VkBuffer getVertexBuffer() const { return m_vertexBuffer; }
+	std::array<VkBuffer, 3> getVertexBufferAsArray() const { return { m_vertexBuffer, m_vertexBuffer, m_vertexBuffer }; }
 	const std::unordered_map<int, std::vector<Mesh>> &getMeshes() const { return m_meshes; }
 private:
 	VkDeviceMemory m_modelMemory;

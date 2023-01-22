@@ -24,7 +24,7 @@ static std::vector<char> readFile(const std::string &filename) {
 	return buffer;
 }
 
-void Pipeline::init(const Device& device, const RenderPass &renderPass, const SwapChain &swapChain, const std::string &vertexShader, const std::string &fragmentShader) {
+void Pipeline::init(const Device& device, const RenderPass &renderPass, const SwapChain &swapChain, const std::string &vertexShader, const std::string &fragmentShader, VkDescriptorSetLayout descriptorSetLayout) {
 	m_device = device;
 	
 	auto vertShaderCode = readFile(vertexShader);
@@ -141,11 +141,23 @@ void Pipeline::init(const Device& device, const RenderPass &renderPass, const Sw
 	colorBlending.blendConstants[2] = 0.0f; // Optional
 	colorBlending.blendConstants[3] = 0.0f; // Optional
 
+	VkPipelineDepthStencilStateCreateInfo depthStencil{};
+	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencil.depthTestEnable = VK_TRUE;
+	depthStencil.depthWriteEnable = VK_TRUE;
+	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencil.depthBoundsTestEnable = VK_FALSE;
+	depthStencil.minDepthBounds = 0.0f; // Optional
+	depthStencil.maxDepthBounds = 1.0f; // Optional
+	depthStencil.stencilTestEnable = VK_FALSE;
+	depthStencil.front = {}; // Optional
+	depthStencil.back = {}; // Optional
+
 	// Pipeline layout
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 0;//1;
-	pipelineLayoutInfo.pSetLayouts = nullptr;//&m_descriptorSetLayout;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 	pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
 	pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
@@ -165,7 +177,7 @@ void Pipeline::init(const Device& device, const RenderPass &renderPass, const Sw
 	pipelineInfo.pViewportState = &viewportState;
 	pipelineInfo.pRasterizationState = &rasterizer;
 	pipelineInfo.pMultisampleState = &multisampling;
-	pipelineInfo.pDepthStencilState = nullptr; // Optional
+	pipelineInfo.pDepthStencilState = &depthStencil;
 	pipelineInfo.pColorBlendState = &colorBlending;
 	pipelineInfo.pDynamicState = nullptr; // Optional
 

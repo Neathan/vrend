@@ -1,6 +1,7 @@
 #include "renderer.h"
 
 #include <stdexcept>
+#include <array>
 
 #include "log.h"
 #include "data/model.h"
@@ -52,6 +53,8 @@ static void destroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMesse
 
 
 Renderer::~Renderer() {
+	m_descriptorManager.destroy();
+
 	m_swapChain.destroy();
 
 	m_renderPass.destroy();
@@ -145,8 +148,25 @@ void Renderer::init(const AppInfo& info, GLFWwindow *window) {
 	// Create render pass
 	m_renderPass.init(m_device, m_swapChain.getImageFormat());
 
+	// Create descriptor set layout
+	VkDescriptorSetLayoutBinding uboLayoutBinding{};
+	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.descriptorCount = 1;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &uboLayoutBinding;
+
+	if (vkCreateDescriptorSetLayout(m_device.getLogicalDevice(), &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
+		LOG_ERROR("Failed to create descriptor set layout");
+		throw std::runtime_error("Failed to create descriptor set layout");
+	}
+
 	// Create graphics pipeline
-	m_pipeline.init(m_device, m_renderPass, m_swapChain, "assets/shaders/static.vert.spv", "assets/shaders/static.frag.spv");
+	m_pipeline.init(m_device, m_renderPass, m_swapChain, "assets/shaders/static.vert.spv", "assets/shaders/static.frag.spv", m_descriptorSetLayout);
 
 	// Create frame buffers
 	m_swapChain.createFrameBuffers(m_renderPass);
@@ -200,6 +220,10 @@ void Renderer::init(const AppInfo& info, GLFWwindow *window) {
 		}
 	}
 
+	// Create descriptors
+	m_descriptorManager.setLayout(m_descriptorSetLayout);
+	m_descriptorManager.init(MAX_FRAMES_IN_FLIGHT, m_device);
+
 	LOG_DEBUG("Renderer initialized");
 }
 
@@ -249,14 +273,16 @@ void Renderer::prepare() {
 	renderPassInfo.renderArea.offset = { 0, 0 };
 	renderPassInfo.renderArea.extent = m_swapChain.getExtent();
 
-	VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-	renderPassInfo.clearValueCount = 1;
-	renderPassInfo.pClearValues = &clearColor;
+	std::array<VkClearValue, 2> clearValues{};
+	clearValues[0].color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
+	clearValues[1].depthStencil = { 1.0f, 0 };
+	renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+	renderPassInfo.pClearValues = clearValues.data();
 
 	vkCmdBeginRenderPass(m_commandBuffers[m_currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 	vkCmdBindPipeline(m_commandBuffers[m_currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.getPipeline());
-	// vkCmdBindDescriptorSets(m_commandBuffers[m_currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.getLayout(), 0, 1, &m_descriptorSets[m_currentFrame], 0, nullptr);
+	vkCmdBindDescriptorSets(m_commandBuffers[m_currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.getLayout(), 0, 1, &m_descriptorManager.getSets()[m_currentFrame], 0, nullptr);
 }
 
 void Renderer::execute() {
@@ -328,9 +354,8 @@ void Renderer::waitForIdle() {
 void Renderer::addModelCommand(const Model *model) {
 	for (const auto &[nodeIndex, meshCollection] : model->getMeshes()) {
 		for (const auto &mesh : meshCollection) {
-			VkBuffer vertexBuffer = model->getVertexBuffer();
-			vkCmdBindVertexBuffers(m_commandBuffers[m_currentFrame], 0, 1, &vertexBuffer, mesh.getVertexOffsets().data());  // TODO: Offset: Add other primitives (normal, texture coordinate etc)
-			vkCmdBindIndexBuffer(m_commandBuffers[m_currentFrame], vertexBuffer, mesh.getIndexOffset(), VK_INDEX_TYPE_UINT16);
+			vkCmdBindVertexBuffers(m_commandBuffers[m_currentFrame], 0, 3, model->getVertexBufferAsArray().data(), mesh.getVertexOffsets().data());  // TODO: Offset: Add other primitives (normal, texture coordinate etc)
+			vkCmdBindIndexBuffer(m_commandBuffers[m_currentFrame], model->getVertexBuffer(), mesh.getIndexOffset(), VK_INDEX_TYPE_UINT16);
 
 			vkCmdDrawIndexed(m_commandBuffers[m_currentFrame], static_cast<uint32_t>(mesh.getIndexCount()), 1, 0, 0, 0);
 		}

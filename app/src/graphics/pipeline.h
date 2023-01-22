@@ -12,7 +12,7 @@
 
 class Pipeline {
 public:
-	void init(const Device &device, const RenderPass& renderPass, const SwapChain& swapChain, const std::string& vertexShader, const std::string& fragmentShader);
+	void init(const Device &device, const RenderPass& renderPass, const SwapChain& swapChain, const std::string& vertexShader, const std::string& fragmentShader, VkDescriptorSetLayout descriptorSetLayout);
 	void destory();
 
 	VkPipeline getPipeline() const { return m_pipeline; }

@@ -6,12 +6,14 @@
 #include <memory>
 
 #include "appinfo.h"
-#include "device.h"
-#include "swap_chain.h"
-#include "render_pass.h"
-#include "pipeline.h"
-#include "validation.h"
-#include "extensions.h"
+#include "graphics/device.h"
+#include "graphics/swap_chain.h"
+#include "graphics/render_pass.h"
+#include "graphics/pipeline.h"
+#include "graphics/validation.h"
+#include "graphics/extensions.h"
+#include "graphics/descriptor.h"
+
 
 class Model;
 
@@ -26,6 +28,7 @@ public:
 	void waitForIdle();
 
 	void addModelCommand(const Model* model);
+	UniformData* getCurrentUniformBuffer() { return m_descriptorManager.getUniformData(m_currentFrame); }
 
 	VkCommandBuffer prepareSingleCommand() const;
 	void executeSingleCommand(VkCommandBuffer commandBuffer) const;
@@ -58,6 +61,10 @@ private:
 	std::vector <VkSemaphore> m_renderFinishedSemaphores;
 	std::vector <VkFence> m_inFlightFences;
 	uint32_t m_currentFrame = 0;
+
+	// Descriptors
+	VkDescriptorSetLayout m_descriptorSetLayout;
+	DescriptorManager m_descriptorManager;
 
 	// Render state variables
 	uint32_t m_imageIndex;

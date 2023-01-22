@@ -2,14 +2,20 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <array>
 
 #include "log.h"
+#include "graphics/image.h"
 
 
 void SwapChain::destroy() {
 	if (!m_device) {
 		return;
 	}
+
+	vkDestroyImageView(m_device.getLogicalDevice(), m_depthImageView, nullptr);
+	vkDestroyImage(m_device.getLogicalDevice(), m_depthImage, nullptr);
+	vkFreeMemory(m_device.getLogicalDevice(), m_depthImageMemory, nullptr);
 
 	for (auto framebuffer : m_framebuffers) {
 		vkDestroyFramebuffer(m_device.getLogicalDevice(), framebuffer, nullptr);
@@ -42,16 +48,16 @@ void SwapChain::init(const Device &device, VkSurfaceKHR surface, GLFWwindow *win
 
 
 	// Create swap chain from final config
-	VkSwapchainCreateInfoKHR createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	createInfo.surface = surface;
+	VkSwapchainCreateInfoKHR swapChainCreateInfo{};
+	swapChainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	swapChainCreateInfo.surface = surface;
 
-	createInfo.minImageCount = imageCount;
-	createInfo.imageFormat = surfaceFormat.format;
-	createInfo.imageColorSpace = surfaceFormat.colorSpace;
-	createInfo.imageExtent = extent;
-	createInfo.imageArrayLayers = 1;
-	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	swapChainCreateInfo.minImageCount = imageCount;
+	swapChainCreateInfo.imageFormat = surfaceFormat.format;
+	swapChainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
+	swapChainCreateInfo.imageExtent = extent;
+	swapChainCreateInfo.imageArrayLayers = 1;
+	swapChainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 	QueueFamilyIndices indices = device.findQueueFamilies(surface);
 	uint32_t queueFamilyIndices[] = {
@@ -60,22 +66,22 @@ void SwapChain::init(const Device &device, VkSurfaceKHR surface, GLFWwindow *win
 	};
 
 	if (indices.graphicsFamily != indices.presentFamily) {
-		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-		createInfo.queueFamilyIndexCount = 2;
-		createInfo.pQueueFamilyIndices = queueFamilyIndices;
+		swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		swapChainCreateInfo.queueFamilyIndexCount = 2;
+		swapChainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
 	}
 	else {
-		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	}
 
-	createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	createInfo.presentMode = presentMode;
-	createInfo.clipped = VK_TRUE;
+	swapChainCreateInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+	swapChainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	swapChainCreateInfo.presentMode = presentMode;
+	swapChainCreateInfo.clipped = VK_TRUE;
 
-	createInfo.oldSwapchain = VK_NULL_HANDLE;
+	swapChainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
 
-	if (vkCreateSwapchainKHR(device.getLogicalDevice(), &createInfo, nullptr, &m_swapChain) != VK_SUCCESS) {
+	if (vkCreateSwapchainKHR(device.getLogicalDevice(), &swapChainCreateInfo, nullptr, &m_swapChain) != VK_SUCCESS) {
 		LOG_ERROR("Failed to create swap chain");
 		throw std::runtime_error("Failed to create swap chain");
 	}
@@ -115,21 +121,54 @@ void SwapChain::init(const Device &device, VkSurfaceKHR surface, GLFWwindow *win
 			throw std::runtime_error("Failed to create image view");
 		}
 	}
+
+	// Create depth image
+	VkFormat depthFormat = VK_FORMAT_D32_SFLOAT; // TODO: Make non-static (also render_pass.cpp)
+	createImage(extent.width, extent.height, depthFormat,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		device, m_depthImage, m_depthImageMemory);
+	
+
+	VkImageViewCreateInfo depthViewCreateInfo{};
+	depthViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	depthViewCreateInfo.image = m_depthImage;
+
+	depthViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	depthViewCreateInfo.format = depthFormat;
+
+	depthViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+	depthViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+	depthViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+	depthViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+	depthViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	depthViewCreateInfo.subresourceRange.baseMipLevel = 0;
+	depthViewCreateInfo.subresourceRange.levelCount = 1;
+	depthViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+	depthViewCreateInfo.subresourceRange.layerCount = 1;
+
+	if (vkCreateImageView(device.getLogicalDevice(), &depthViewCreateInfo, nullptr, &m_depthImageView) != VK_SUCCESS) {
+		LOG_ERROR("Failed to create depth image view");
+		throw std::runtime_error("Failed to create depth image view");
+	}
 }
 
 void SwapChain::createFrameBuffers(const RenderPass &renderPass) {
 	m_framebuffers.resize(m_imageViews.size());
 
 	for (size_t i = 0; i < m_imageViews.size(); i++) {
-		VkImageView attachments[] = {
-			m_imageViews[i]
+		std::array<VkImageView, 2> attachments = {
+			m_imageViews[i],
+			m_depthImageView
 		};
 
 		VkFramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebufferInfo.renderPass = renderPass.getRenderPass();
-		framebufferInfo.attachmentCount = 1;
-		framebufferInfo.pAttachments = attachments;
+		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+		framebufferInfo.pAttachments = attachments.data();
 		framebufferInfo.width = m_extent.width;
 		framebufferInfo.height = m_extent.height;
 		framebufferInfo.layers = 1;
