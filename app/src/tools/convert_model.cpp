@@ -4,6 +4,9 @@
 
 #include <vector>
 
+#include "graphics/image.h"
+#include "graphics/texture.h"
+#include "tools/constant_translator.h"
 #include "log.h"
 
 std::vector<std::byte> extractData(const tinygltf::Buffer &buffer, const tinygltf::BufferView &bufferView, size_t bufferViewOffset) {
@@ -82,6 +85,51 @@ void processNode(const tinygltf::Node &node, const tinygltf::Model &model, std::
 	}
 }
 
+std::vector<Image> getModelImages(const tinygltf::Model& model, std::vector<std::byte>& imageData) {
+	std::vector<Image> images;
+	images.reserve(model.images.size());
+
+	for (const auto &image : model.images) {
+		// TODO: Check if image uses URI or buffer view (does "image" always resolve?)
+		size_t baseOffset = imageData.size();
+
+		const std::byte *data = reinterpret_cast<const std::byte *>(image.image.data());
+		imageData.insert(imageData.end(), data, data + image.image.size());
+
+		images.push_back({
+			image.width,
+			image.height,
+			image.bits,
+			baseOffset,
+			image.image.size()
+		});
+	}
+
+	return images;
+}
+
+std::vector<Texture> getModelTextures(const tinygltf::Model &model) {
+	std::vector<Texture> textures;
+	textures.reserve(model.textures.size());
+
+	for (const auto &texture : model.textures) {
+		// TODO: Manage missing sampler and image
+
+		const auto &sampler = model.samplers[texture.sampler];
+
+		textures.push_back({
+			texture.source,
+			convertGLFilterToVulkan(sampler.magFilter),
+			convertGLFilterToVulkan(sampler.minFilter),
+			convertGLWrapModeToVulkan(sampler.wrapS),
+			convertGLWrapModeToVulkan(sampler.wrapT),
+			VK_SAMPLER_ADDRESS_MODE_REPEAT
+		});
+	}
+
+	return textures;
+}
+
 std::unique_ptr<ModelSource> convertToModelSource(const std::string &path) {
 	tinygltf::TinyGLTF loader;
 
@@ -113,5 +161,10 @@ std::unique_ptr<ModelSource> convertToModelSource(const std::string &path) {
 		processNode(node, model, vertexData, modelMeshes);
 	}
 
-	return std::make_unique<ModelSource>(vertexData, std::vector<std::byte>{}, modelMeshes);
+	std::vector<std::byte> imageData;
+	std::vector<Image> images = getModelImages(model, imageData);
+
+	std::vector<Texture> textures = getModelTextures(model);
+
+	return std::make_unique<ModelSource>(vertexData, imageData, modelMeshes, images, textures);
 }

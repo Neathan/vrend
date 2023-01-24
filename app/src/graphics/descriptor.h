@@ -13,6 +13,8 @@ public:
 	void setLayout(VkDescriptorSetLayout layout) { m_layout = layout; }
 	void init(int count, const Device& device);
 
+	void setSamplerDescriptorSet(VkImageView imageView, VkSampler imageSampler, int frame);
+
 	const std::vector<VkDescriptorSet> &getSets() const { return m_sets; }
 
 	UniformData *getUniformData(int frame) { return m_uniformBuffers[frame].getData(); }

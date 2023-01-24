@@ -60,6 +60,9 @@ void Device::init(VkInstance instance, VkSurfaceKHR surface, const Validator& va
 	VkPhysicalDeviceFeatures deviceFeatures{};
 	createInfo.pEnabledFeatures = &deviceFeatures;
 
+	// We force required anisotropy to be required
+	deviceFeatures.samplerAnisotropy = VK_TRUE;
+
 	// Extensions
 	createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.getExtensions().size());
 	createInfo.ppEnabledExtensionNames = deviceExtensions.getExtensions().data();

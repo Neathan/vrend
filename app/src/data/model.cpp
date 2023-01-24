@@ -147,89 +147,153 @@ VkBuffer createEmptyBuffer(VkDeviceSize size, VkBufferUsageFlags usage, const De
 
 
 std::unique_ptr<Model> Model::load(const ModelSource &modelSource, const Renderer &renderer) {
-	const std::vector<std::byte> &vertexData = modelSource.getVertexData();
+	VkDeviceMemory vertexStagingMemory, modelVertexMemory;
 
-	VkDeviceSize modelByteSize = vertexData.size(); // TODO: Add images
-
-	VkDeviceMemory stagingMemory, modelMemory;
-
-	VkBuffer stagingBuffer = createEmptyBuffer(
-		vertexData.size(),
+	VkBuffer vertexStagingBuffer = createEmptyBuffer(
+		modelSource.getVertexData().size(),
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		renderer.getDevice());
 
-	VkBuffer buffer = createEmptyBuffer(
-		vertexData.size(),
+	VkBuffer vertexBuffer = createEmptyBuffer(
+		modelSource.getVertexData().size(),
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 		renderer.getDevice());
 
 
 	VkMemoryRequirements stagingMemoryRequirements;
-	vkGetBufferMemoryRequirements(renderer.getDevice().getLogicalDevice(), stagingBuffer, &stagingMemoryRequirements);
+	vkGetBufferMemoryRequirements(renderer.getDevice().getLogicalDevice(), vertexStagingBuffer, &stagingMemoryRequirements);
 
-	// TODO: Concatenate requirements of vertex and image
-
-	VkMemoryAllocateInfo stagingAllocationInfo{};
-	stagingAllocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	stagingAllocationInfo.allocationSize = stagingMemoryRequirements.size;
-	stagingAllocationInfo.memoryTypeIndex = findMemoryType(
+	VkMemoryAllocateInfo vertexStagingAllocationInfo{};
+	vertexStagingAllocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	vertexStagingAllocationInfo.allocationSize = stagingMemoryRequirements.size;
+	vertexStagingAllocationInfo.memoryTypeIndex = findMemoryType(
 		stagingMemoryRequirements.memoryTypeBits,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		renderer.getDevice());
 
-	if (vkAllocateMemory(renderer.getDevice().getLogicalDevice(), &stagingAllocationInfo, nullptr, &stagingMemory) != VK_SUCCESS) {
+	if (vkAllocateMemory(renderer.getDevice().getLogicalDevice(), &vertexStagingAllocationInfo, nullptr, &vertexStagingMemory) != VK_SUCCESS) {
 		LOG_ERROR("Failed to allocate staging buffer memory");
 		throw std::runtime_error("Failed to allocate staging buffer memory");
 	}
 
-	vkBindBufferMemory(renderer.getDevice().getLogicalDevice(), stagingBuffer, stagingMemory, 0);  // Note: Offset for image should be vertexData.size()
+	vkBindBufferMemory(renderer.getDevice().getLogicalDevice(), vertexStagingBuffer, vertexStagingMemory, 0);
 
 
-	VkMemoryRequirements memoryRequirements;
-	vkGetBufferMemoryRequirements(renderer.getDevice().getLogicalDevice(), buffer, &memoryRequirements);
+	VkMemoryRequirements vertexMemoryRequirements;
+	vkGetBufferMemoryRequirements(renderer.getDevice().getLogicalDevice(), vertexBuffer, &vertexMemoryRequirements);
 
-	// TODO: Concatenate requirements of vertex and image
-
-	VkMemoryAllocateInfo allocationInfo{};
-	allocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocationInfo.allocationSize = memoryRequirements.size;
-	allocationInfo.memoryTypeIndex = findMemoryType(
-		memoryRequirements.memoryTypeBits,
+	VkMemoryAllocateInfo veretxAllocationInfo{};
+	veretxAllocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	veretxAllocationInfo.allocationSize = vertexMemoryRequirements.size;
+	veretxAllocationInfo.memoryTypeIndex = findMemoryType(
+		vertexMemoryRequirements.memoryTypeBits,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		renderer.getDevice());
 
-	if (vkAllocateMemory(renderer.getDevice().getLogicalDevice(), &allocationInfo, nullptr, &modelMemory) != VK_SUCCESS) {
+	if (vkAllocateMemory(renderer.getDevice().getLogicalDevice(), &veretxAllocationInfo, nullptr, &modelVertexMemory) != VK_SUCCESS) {
 		LOG_ERROR("Failed to allocate buffer memory");
 		throw std::runtime_error("Failed to allocate buffer memory");
 	}
 
-	vkBindBufferMemory(renderer.getDevice().getLogicalDevice(), buffer, modelMemory, 0);  // Note: Offset for image should be vertexData.size()
+	vkBindBufferMemory(renderer.getDevice().getLogicalDevice(), vertexBuffer, modelVertexMemory, 0);
 
 
 	void *data;
-	vkMapMemory(renderer.getDevice().getLogicalDevice(), stagingMemory, 0, vertexData.size(), 0, &data);  // Note: Offset for image should be vertexData.size()
-	memcpy(data, vertexData.data(), vertexData.size());
-	vkUnmapMemory(renderer.getDevice().getLogicalDevice(), stagingMemory);
-
-	// TODO: Image mapping
-
+	vkMapMemory(renderer.getDevice().getLogicalDevice(), vertexStagingMemory, 0, modelSource.getVertexData().size(), 0, &data);
+	memcpy(data, modelSource.getVertexData().data(), modelSource.getVertexData().size());
+	vkUnmapMemory(renderer.getDevice().getLogicalDevice(), vertexStagingMemory);
 
 	VkCommandBuffer commandBuffer = renderer.prepareSingleCommand();
 	VkBufferCopy copyRegion{};
-	copyRegion.size = vertexData.size();
-	vkCmdCopyBuffer(commandBuffer, stagingBuffer, buffer, 1, &copyRegion);
+	copyRegion.size = modelSource.getVertexData().size();
+	vkCmdCopyBuffer(commandBuffer, vertexStagingBuffer, vertexBuffer, 1, &copyRegion);
 	renderer.executeSingleCommand(commandBuffer);
-	vkDestroyBuffer(renderer.getDevice().getLogicalDevice(), stagingBuffer, nullptr);
+	vkDestroyBuffer(renderer.getDevice().getLogicalDevice(), vertexStagingBuffer, nullptr);
+	vkFreeMemory(renderer.getDevice().getLogicalDevice(), vertexStagingMemory, nullptr);
 
-	// TODO: Image copy
+
+	std::vector<VkImage> images;
+	std::vector<VkDeviceMemory> imageMemoryList;
+	std::vector<VkImageView> imageViews;
+	std::vector<VkSampler> imageSamplers;
+
+	VkPhysicalDeviceProperties properties{};
+	vkGetPhysicalDeviceProperties(renderer.getDevice().getPhysicalDevice(), &properties);
+
+	for (const auto &texture : modelSource.getTextures()) {
+		const Image &imageSource = modelSource.getImages().at(texture.image);
+		const std::byte *imageData = modelSource.getImageData().data() + imageSource.offset;
+
+		VkImage image;
+		VkDeviceMemory imageMemory;
+		VkImageView imageView = loadImage(
+			(void*)imageData, imageSource.size,
+			imageSource.width, imageSource.height,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_SAMPLED_BIT,
+			renderer, image, imageMemory);
 
 
-	vkFreeMemory(renderer.getDevice().getLogicalDevice(), stagingMemory, nullptr);
+		VkSamplerCreateInfo samplerInfo{};
+		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		samplerInfo.magFilter = texture.mag;
+		samplerInfo.minFilter = texture.min;
+		samplerInfo.addressModeU = texture.wrapU;
+		samplerInfo.addressModeV = texture.wrapV;
+		samplerInfo.addressModeW = texture.wrapW;
+		samplerInfo.anisotropyEnable = VK_TRUE;
+		samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+		samplerInfo.compareEnable = VK_FALSE;
+		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+		// TODO: Implement below settings (requires changes to ModelSource and converter)
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerInfo.mipLodBias = 0.0f;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = 0.0f;
 
-	return std::make_unique<Model>(modelMemory, buffer, renderer.getDevice().getLogicalDevice(), modelSource.getMeshes());
+		VkSampler imageSampler;
+		if (vkCreateSampler(renderer.getDevice().getLogicalDevice(), &samplerInfo, nullptr, &imageSampler) != VK_SUCCESS) {
+			LOG_ERROR("Failed to create texture sampler");
+			throw std::runtime_error("Failed to create texture sampler");
+		}
+
+		images.push_back(image);
+		imageMemoryList.push_back(imageMemory);
+		imageViews.push_back(imageView);
+		imageSamplers.push_back(imageSampler);
+	}
+
+	return std::make_unique<Model>(
+		modelVertexMemory,
+		vertexBuffer,
+		renderer.getDevice().getLogicalDevice(),
+		modelSource.getMeshes(),
+		images,
+		imageMemoryList,
+		imageViews,
+		imageSamplers);
 }
 
 Model::~Model() {
+	for (const auto &imageSampler : m_imageSamplers) {
+		vkDestroySampler(m_device, imageSampler, nullptr);
+	}
+
+	for (const auto &imageView : m_imageViews) {
+		vkDestroyImageView(m_device, imageView, nullptr);
+	}
+
+	for (const auto &image : m_images) {
+		vkDestroyImage(m_device, image, nullptr);
+	}
+
+	for (const auto &imageMemory : m_imageMemory) {
+		vkFreeMemory(m_device, imageMemory, nullptr);
+	}
+
 	vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
 
 	vkFreeMemory(m_device, m_modelMemory, nullptr);

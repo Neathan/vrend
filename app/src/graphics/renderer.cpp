@@ -148,17 +148,25 @@ void Renderer::init(const AppInfo& info, GLFWwindow *window) {
 	// Create render pass
 	m_renderPass.init(m_device, m_swapChain.getImageFormat());
 
-	// Create descriptor set layout
+	// Create descriptor set layout (could probably move to DescriptorManager)
 	VkDescriptorSetLayoutBinding uboLayoutBinding{};
 	uboLayoutBinding.binding = 0;
 	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	uboLayoutBinding.descriptorCount = 1;
 	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+	samplerLayoutBinding.binding = 1;
+	samplerLayoutBinding.descriptorCount = 1;
+	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerLayoutBinding.pImmutableSamplers = nullptr;
+	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	std::array<VkDescriptorSetLayoutBinding, 2> layoutBindings = { uboLayoutBinding, samplerLayoutBinding };
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = 1;
-	layoutInfo.pBindings = &uboLayoutBinding;
+	layoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
+	layoutInfo.pBindings = layoutBindings.data();
 
 	if (vkCreateDescriptorSetLayout(m_device.getLogicalDevice(), &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
 		LOG_ERROR("Failed to create descriptor set layout");
@@ -353,6 +361,9 @@ void Renderer::waitForIdle() {
 
 void Renderer::addModelCommand(const Model *model) {
 	for (const auto &[nodeIndex, meshCollection] : model->getMeshes()) {
+
+		m_descriptorManager.setSamplerDescriptorSet(model->getImageViews()[0], model->getImageSamplers()[0], m_currentFrame);
+
 		for (const auto &mesh : meshCollection) {
 			vkCmdBindVertexBuffers(m_commandBuffers[m_currentFrame], 0, 3, model->getVertexBufferAsArray().data(), mesh.getVertexOffsets().data());  // TODO: Offset: Add other primitives (normal, texture coordinate etc)
 			vkCmdBindIndexBuffer(m_commandBuffers[m_currentFrame], model->getVertexBuffer(), mesh.getIndexOffset(), VK_INDEX_TYPE_UINT16);
