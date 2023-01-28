@@ -12,7 +12,9 @@
 #include "graphics/pipeline.h"
 #include "graphics/validation.h"
 #include "graphics/extensions.h"
-#include "graphics/descriptor.h"
+#include "graphics/uniform.h"
+#include "graphics/descriptors.h"
+#include "graphics/material.h"
 
 
 class Model;
@@ -27,13 +29,19 @@ public:
 	void execute();
 	void waitForIdle();
 
-	void addModelCommand(const Model* model);
-	UniformData* getCurrentUniformBuffer() { return m_descriptorManager.getUniformData(m_currentFrame); }
+	void addTransformCommand(const glm::mat4 &matrix);
+	void addModelCommand(const Model *model);
+	void updateMaterialSets(Material &material);
+	UniformData *getCurrentUniformBuffer() { return m_uniformBuffers[m_currentFrame].getData(); }
 
 	VkCommandBuffer prepareSingleCommand() const;
 	void executeSingleCommand(VkCommandBuffer commandBuffer) const;
 
+	VkInstance getInstance() const { return m_instance; }
 	const Device &getDevice() const { return m_device; }
+	const RenderPass &getRenderPass() const { return m_renderPass; }
+
+	VkCommandBuffer getCurrentCommandBuffer() const { return m_commandBuffers[m_currentFrame]; }
 
 private:
 	void configureDebugCallback(VkDebugUtilsMessengerCreateInfoEXT &debugCreateInfo);
@@ -63,8 +71,12 @@ private:
 	uint32_t m_currentFrame = 0;
 
 	// Descriptors
-	VkDescriptorSetLayout m_descriptorSetLayout;
-	DescriptorManager m_descriptorManager;
+// 	DescriptorManager m_descriptorManager;
+	std::vector<UniformBuffer> m_uniformBuffers;
+	std::vector<VkDescriptorSet> m_uniformSets;
+
+	DescriptorLayoutCache m_descriptorLayoutCache;
+	DescriptorAllocator m_descriptorAllocator;
 
 	// Render state variables
 	uint32_t m_imageIndex;

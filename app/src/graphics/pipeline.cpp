@@ -24,7 +24,10 @@ static std::vector<char> readFile(const std::string &filename) {
 	return buffer;
 }
 
-void Pipeline::init(const Device& device, const RenderPass &renderPass, const SwapChain &swapChain, const std::string &vertexShader, const std::string &fragmentShader, VkDescriptorSetLayout descriptorSetLayout) {
+void Pipeline::init(const Device& device, const RenderPass &renderPass, const SwapChain &swapChain,
+	const std::string &vertexShader, const std::string &fragmentShader,
+	const std::vector<VkDescriptorSetLayout> &descriptorSetLayouts) {
+
 	m_device = device;
 	
 	auto vertShaderCode = readFile(vertexShader);
@@ -153,13 +156,19 @@ void Pipeline::init(const Device& device, const RenderPass &renderPass, const Sw
 	depthStencil.front = {}; // Optional
 	depthStencil.back = {}; // Optional
 
+	// Push constant
+	VkPushConstantRange pushConstantRange{};
+	pushConstantRange.offset = 0;
+	pushConstantRange.size = sizeof(glm::mat4);
+	pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
 	// Pipeline layout
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-	pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-	pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+	pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+	pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+	pipelineLayoutInfo.pushConstantRangeCount = 1;
+	pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
 	if (vkCreatePipelineLayout(device.getLogicalDevice(), &pipelineLayoutInfo, nullptr, &m_layout) != VK_SUCCESS) {
 		LOG_ERROR("Failed to create pipeline layout");

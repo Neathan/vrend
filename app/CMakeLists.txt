@@ -1,4 +1,4 @@
-add_executable(app "src/main.cpp" "src/log.h" "src/app.h" "src/app.cpp" "src/graphics/renderer.h" "src/graphics/renderer.h" "src/graphics/renderer.cpp" "src/graphics/validation.h" "src/graphics/validation.cpp" "src/appinfo.h" "src/graphics/extensions.h" "src/graphics/extensions.cpp" "src/graphics/device.h" "src/graphics/device.cpp" "src/graphics/swap_chain.h" "src/graphics/swap_chain.cpp" "src/graphics/render_pass.h" "src/graphics/render_pass.cpp" "src/graphics/pipeline.h" "src/graphics/pipeline.cpp"  "src/data/model.h" "src/data/model.cpp" "src/tools/convert_model.h" "src/tools/convert_model.cpp" "src/data/model_source.h" "src/data/mesh.h" "src/graphics/descriptor.h" "src/graphics/uniform.h" "src/graphics/uniform.cpp" "src/graphics/memory.h" "src/graphics/memory.cpp" "src/graphics/descriptor.cpp" "src/graphics/image.h" "src/graphics/image.cpp" "src/graphics/texture.h" "src/tools/constant_translator.h" "src/tools/constant_translator.cpp" "src/graphics/texture_buffer.h")
+add_executable(app "src/main.cpp" "src/log.h" "src/app.h" "src/app.cpp" "src/graphics/renderer.h" "src/graphics/renderer.h" "src/graphics/renderer.cpp" "src/graphics/validation.h" "src/graphics/validation.cpp" "src/appinfo.h" "src/graphics/extensions.h" "src/graphics/extensions.cpp" "src/graphics/device.h" "src/graphics/device.cpp" "src/graphics/swap_chain.h" "src/graphics/swap_chain.cpp" "src/graphics/render_pass.h" "src/graphics/render_pass.cpp" "src/graphics/pipeline.h" "src/graphics/pipeline.cpp"  "src/data/model.h" "src/data/model.cpp" "src/tools/convert_model.h" "src/tools/convert_model.cpp" "src/data/model_source.h" "src/data/mesh.h" "src/graphics/descriptor.h" "src/graphics/uniform.h" "src/graphics/uniform.cpp" "src/graphics/memory.h" "src/graphics/memory.cpp" "src/graphics/descriptor.cpp" "src/graphics/image.h" "src/graphics/image.cpp" "src/graphics/texture.h" "src/tools/constant_translator.h" "src/tools/constant_translator.cpp" "src/graphics/texture_buffer.h" "src/graphics/ui.h" "src/graphics/ui.cpp" "src/data/scene.h" "src/uuid.h" "src/uuid.cpp" "src/data/scene.cpp" "src/graphics/material.h" "src/graphics/material.cpp" "src/graphics/texture.cpp" "src/graphics/descriptors.h" "src/graphics/descriptors.cpp")
 
 set_property(TARGET app PROPERTY CXX_STANDARD 17)
 
@@ -6,8 +6,10 @@ target_link_libraries(app PUBLIC glfw)
 target_link_libraries(app PUBLIC glad)
 target_link_libraries(app PUBLIC glm)
 target_link_libraries(app PUBLIC spdlog)
-
 target_link_libraries(app PUBLIC tinygltf)
+target_link_libraries(app PUBLIC EnTT)
+
+target_link_libraries(app PUBLIC imgui)
 
 target_include_directories(app PUBLIC "src")
 

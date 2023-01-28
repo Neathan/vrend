@@ -2,7 +2,7 @@
 
 #include <glad/vulkan.h>
 
-struct Texture {
+struct TextureData {
 	int image;
 
 	VkFilter mag;
@@ -10,4 +10,11 @@ struct Texture {
 	VkSamplerAddressMode wrapU;
 	VkSamplerAddressMode wrapV;
 	VkSamplerAddressMode wrapW;
+};
+
+struct Texture {
+	VkImageView view;
+	VkSampler sampler;
+
+	void destroy(VkDevice device);
 };

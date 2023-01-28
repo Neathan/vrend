@@ -108,8 +108,8 @@ std::vector<Image> getModelImages(const tinygltf::Model& model, std::vector<std:
 	return images;
 }
 
-std::vector<Texture> getModelTextures(const tinygltf::Model &model) {
-	std::vector<Texture> textures;
+std::vector<TextureData> getModelTextures(const tinygltf::Model &model) {
+	std::vector<TextureData> textures;
 	textures.reserve(model.textures.size());
 
 	for (const auto &texture : model.textures) {
@@ -128,6 +128,19 @@ std::vector<Texture> getModelTextures(const tinygltf::Model &model) {
 	}
 
 	return textures;
+}
+
+std::vector<MaterialData> getModelMaterials(const tinygltf::Model &model) {
+	std::vector<MaterialData> materials;
+	materials.reserve(model.materials.size());
+
+	for (const auto &material : model.materials) {
+		materials.push_back({
+			material.pbrMetallicRoughness.baseColorTexture.index,
+			material.normalTexture.index
+		});
+	}
+	return materials;
 }
 
 std::unique_ptr<ModelSource> convertToModelSource(const std::string &path) {
@@ -164,7 +177,8 @@ std::unique_ptr<ModelSource> convertToModelSource(const std::string &path) {
 	std::vector<std::byte> imageData;
 	std::vector<Image> images = getModelImages(model, imageData);
 
-	std::vector<Texture> textures = getModelTextures(model);
+	std::vector<TextureData> textures = getModelTextures(model);
+	std::vector<MaterialData> materials = getModelMaterials(model);
 
-	return std::make_unique<ModelSource>(vertexData, imageData, modelMeshes, images, textures);
+	return std::make_unique<ModelSource>(vertexData, imageData, modelMeshes, images, textures, materials);
 }

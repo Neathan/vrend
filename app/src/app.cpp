@@ -3,10 +3,13 @@
 #include <glad/vulkan.h>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <imgui.h>
+
 #include <stdexcept>
 
 #include "data/model.h"
 #include "tools/convert_model.h"
+#include "data/scene.h"
 
 
 App::~App() {
@@ -41,18 +44,26 @@ void App::init() {
 }
 
 void App::start() {
+	Scene scene;
+
 	auto modelSource = convertToModelSource("assets/models/gltf/helmet.glb");
-	auto model = Model::load(*modelSource.get(), m_renderer);
+
+	std::shared_ptr<Model> model = Model::load(*modelSource.get(), m_renderer);
+
+	for (auto &material : model->getMaterials()) {
+		m_renderer.updateMaterialSets(material);
+	}
+
+	Entity entity1 = scene.createEntity();
+	Entity entity2 = scene.createEntity();
+	entity1.addComponent<ModelComponent>(model);
+	entity2.addComponent<ModelComponent>(model);
 
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
 		m_renderer.newFrame();
-		m_renderer.prepare();
 
-		UniformData* ubo = m_renderer.getCurrentUniformBuffer();
-		ubo->model = glm::rotate(glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * glm::radians(45.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
-			glm::radians(270.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-// 		ubo->model = glm::mat4(1.0f);
+		UniformData *ubo = m_renderer.getCurrentUniformBuffer();
 		ubo->view = glm::lookAt(
 			glm::vec3(0.0f, 0.0f, -5.0f),
 			glm::vec3(0.0f, 0.0f, 0.0f),
@@ -64,7 +75,14 @@ void App::start() {
 			100.0f);
 		ubo->proj[1][1] *= -1; // Invert Y clip coordinates (OpenGL artifact)
 
-		m_renderer.addModelCommand(model.get());
+		m_renderer.prepare();
+
+		entity1.getComponent<TransformComponent>().matrix = glm::rotate(glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * glm::radians(45.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
+			glm::radians(270.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+		entity2.getComponent<TransformComponent>().matrix = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+		scene.render(m_renderer);
 
 		m_renderer.execute();
 	}

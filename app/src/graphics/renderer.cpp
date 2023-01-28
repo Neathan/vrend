@@ -53,7 +53,15 @@ static void destroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMesse
 
 
 Renderer::~Renderer() {
-	m_descriptorManager.destroy();
+	m_descriptorLayoutCache.destroy();
+	m_descriptorAllocator.destroy();
+
+	// TODO: destroy m_uniformSets?
+	// TODO: destroy material sets?
+	
+	for (auto &uniformBuffer : m_uniformBuffers) {
+		uniformBuffer.destroy();
+	}
 
 	m_swapChain.destroy();
 
@@ -148,33 +156,37 @@ void Renderer::init(const AppInfo& info, GLFWwindow *window) {
 	// Create render pass
 	m_renderPass.init(m_device, m_swapChain.getImageFormat());
 
-	// Create descriptor set layout (could probably move to DescriptorManager)
-	VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.binding = 0;
-	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	// Create descriptors
+	m_descriptorLayoutCache.init(m_device.getLogicalDevice());
+	m_descriptorAllocator.init(m_device.getLogicalDevice());
+	// Create uniform (view storage)
+	VkDescriptorSetLayout viewLayout;
+	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+		m_uniformBuffers.emplace_back(m_device);
 
-	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 1;
-	samplerLayoutBinding.descriptorCount = 1;
-	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	samplerLayoutBinding.pImmutableSamplers = nullptr;
-	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = m_uniformBuffers[i].getBuffer();
+		bufferInfo.offset = 0;
+		bufferInfo.range = m_uniformBuffers[i].getSize();
 
-	std::array<VkDescriptorSetLayoutBinding, 2> layoutBindings = { uboLayoutBinding, samplerLayoutBinding };
-	VkDescriptorSetLayoutCreateInfo layoutInfo{};
-	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
-	layoutInfo.pBindings = layoutBindings.data();
-
-	if (vkCreateDescriptorSetLayout(m_device.getLogicalDevice(), &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
-		LOG_ERROR("Failed to create descriptor set layout");
-		throw std::runtime_error("Failed to create descriptor set layout");
+		VkDescriptorSet uniformSet;
+		DescriptorBuilder::begin(&m_descriptorLayoutCache, &m_descriptorAllocator)
+			.bindBuffer(0, &bufferInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+			.build(uniformSet, viewLayout);
+		m_uniformSets.push_back(uniformSet);
 	}
 
+	// Create dummy material layout
+	VkDescriptorSetLayout imageLayout;
+	DescriptorBuilder::begin(&m_descriptorLayoutCache, &m_descriptorAllocator)
+		.bindDummy(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+		.bindDummy(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+		.buildLayout(imageLayout);
+
+	std::vector<VkDescriptorSetLayout> descriptorSetLayouts = { viewLayout, imageLayout };
+
 	// Create graphics pipeline
-	m_pipeline.init(m_device, m_renderPass, m_swapChain, "assets/shaders/static.vert.spv", "assets/shaders/static.frag.spv", m_descriptorSetLayout);
+	m_pipeline.init(m_device, m_renderPass, m_swapChain, "assets/shaders/static.vert.spv", "assets/shaders/static.frag.spv", descriptorSetLayouts);
 
 	// Create frame buffers
 	m_swapChain.createFrameBuffers(m_renderPass);
@@ -227,10 +239,6 @@ void Renderer::init(const AppInfo& info, GLFWwindow *window) {
 			throw std::runtime_error("Failed to create semaphores");
 		}
 	}
-
-	// Create descriptors
-	m_descriptorManager.setLayout(m_descriptorSetLayout);
-	m_descriptorManager.init(MAX_FRAMES_IN_FLIGHT, m_device);
 
 	LOG_DEBUG("Renderer initialized");
 }
@@ -290,7 +298,7 @@ void Renderer::prepare() {
 	vkCmdBeginRenderPass(m_commandBuffers[m_currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 	vkCmdBindPipeline(m_commandBuffers[m_currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.getPipeline());
-	vkCmdBindDescriptorSets(m_commandBuffers[m_currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.getLayout(), 0, 1, &m_descriptorManager.getSets()[m_currentFrame], 0, nullptr);
+	vkCmdBindDescriptorSets(m_commandBuffers[m_currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.getLayout(), 0, 1, &m_uniformSets[m_currentFrame], 0, nullptr);
 }
 
 void Renderer::execute() {
@@ -359,17 +367,44 @@ void Renderer::waitForIdle() {
 	vkDeviceWaitIdle(m_device.getLogicalDevice());
 }
 
+void Renderer::addTransformCommand(const glm::mat4 &matrix) {
+	vkCmdPushConstants(m_commandBuffers[m_currentFrame], m_pipeline.getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &matrix);
+}
+
 void Renderer::addModelCommand(const Model *model) {
 	for (const auto &[nodeIndex, meshCollection] : model->getMeshes()) {
-
-		m_descriptorManager.setSamplerDescriptorSet(model->getImageViews()[0], model->getImageSamplers()[0], m_currentFrame);
+		
+		vkCmdBindDescriptorSets(m_commandBuffers[m_currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.getLayout(), 1, 1, &(model->getMaterials()[0].sets[m_currentFrame]), 0, nullptr);
 
 		for (const auto &mesh : meshCollection) {
+
 			vkCmdBindVertexBuffers(m_commandBuffers[m_currentFrame], 0, 3, model->getVertexBufferAsArray().data(), mesh.getVertexOffsets().data());  // TODO: Offset: Add other primitives (normal, texture coordinate etc)
 			vkCmdBindIndexBuffer(m_commandBuffers[m_currentFrame], model->getVertexBuffer(), mesh.getIndexOffset(), VK_INDEX_TYPE_UINT16);
 
 			vkCmdDrawIndexed(m_commandBuffers[m_currentFrame], static_cast<uint32_t>(mesh.getIndexCount()), 1, 0, 0, 0);
 		}
+	}
+}
+
+void Renderer::updateMaterialSets(Material& material) {
+	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+		VkDescriptorImageInfo albedoImageInfo{};
+		albedoImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		albedoImageInfo.imageView = material.albedo.view;
+		albedoImageInfo.sampler = material.albedo.sampler;
+
+		VkDescriptorImageInfo normalImageInfo{};
+		normalImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		normalImageInfo.imageView = material.normal.view;
+		normalImageInfo.sampler = material.normal.sampler;
+
+
+		VkDescriptorSet materialSet;
+		DescriptorBuilder::begin(&m_descriptorLayoutCache, &m_descriptorAllocator)
+			.bindImage(1, &albedoImageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+			.bindImage(2, &normalImageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+			.build(materialSet);
+		material.sets.push_back(materialSet);
 	}
 }
 

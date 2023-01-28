@@ -8,13 +8,16 @@ layout(location = 2) in vec3 worldPosition;
 layout(location = 0) out vec4 fragColor;
 
 
-layout(binding = 1) uniform sampler2D textureSampler;
+layout(set = 1, binding = 1) uniform sampler2D albedoSampler;
+layout(set = 1, binding = 2) uniform sampler2D normalSampler;
+
 
 void main() {
 	vec3 dir = vec3(1, -1, -1);
 	float x = dot(dir, normal);
 
-	vec4 color = texture(textureSampler, uv);
+	vec4 color = texture(albedoSampler, uv);
+	vec3 normal = texture(normalSampler, uv).rgb;
 
-	fragColor = vec4(color.rgb, 1.0);
+	fragColor = vec4(color.rgb * normal, 1.0);
 }
