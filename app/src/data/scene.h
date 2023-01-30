@@ -62,6 +62,8 @@ public:
 	void removeEntity(UUID id);
 
 	void render(Renderer& renderer);
+
+	void destroy();
 private:
 	friend Entity;
 

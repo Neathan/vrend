@@ -17,6 +17,8 @@ struct Mesh {
 
 	size_t indexCount;
 
+	int materialIndex;
+
 	std::array<VkDeviceSize, 3> getVertexOffsets() const { return { positionStart, textureCoordinateStart, normalStart }; }
 	size_t getIndexOffset() const { return indexStart; }
 

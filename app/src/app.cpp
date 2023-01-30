@@ -7,9 +7,8 @@
 
 #include <stdexcept>
 
-#include "data/model.h"
-#include "tools/convert_model.h"
 #include "data/scene.h"
+#include "data/asset_manager.h"
 
 
 App::~App() {
@@ -46,34 +45,31 @@ void App::init() {
 void App::start() {
 	Scene scene;
 
-	auto modelSource = convertToModelSource("assets/models/gltf/helmet.glb");
+	AssetManager assetManager(&m_renderer);
 
-	std::shared_ptr<Model> model = Model::load(*modelSource.get(), m_renderer);
-
-	for (auto &material : model->getMaterials()) {
-		m_renderer.updateMaterialSets(material);
-	}
+	std::shared_ptr<Model> model = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/helmet.glb"));
+	std::shared_ptr<Model> model2 = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/cube_textured.glb"));
 
 	Entity entity1 = scene.createEntity();
 	Entity entity2 = scene.createEntity();
 	entity1.addComponent<ModelComponent>(model);
-	entity2.addComponent<ModelComponent>(model);
+	entity2.addComponent<ModelComponent>(model2);
 
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
 		m_renderer.newFrame();
 
-		UniformData *ubo = m_renderer.getCurrentUniformBuffer();
-		ubo->view = glm::lookAt(
+		ViewUniformData *viewData = m_renderer.getCurrentViewUniformBuffer();
+		viewData->view = glm::lookAt(
 			glm::vec3(0.0f, 0.0f, -5.0f),
 			glm::vec3(0.0f, 0.0f, 0.0f),
 			glm::vec3(0.0f, -1.0f, 0.0f));
-		ubo->proj = glm::perspective(
+		viewData->proj = glm::perspective(
 			glm::radians(45.0f),
 			1920.0f / 1080.0f,
 			0.1f,
 			100.0f);
-		ubo->proj[1][1] *= -1; // Invert Y clip coordinates (OpenGL artifact)
+		viewData->proj[1][1] *= -1; // Invert Y clip coordinates (OpenGL artifact)
 
 		m_renderer.prepare();
 
@@ -89,5 +85,7 @@ void App::start() {
 
 	// Wait for queue completion, ensures clean shutdown
 	m_renderer.waitForIdle();
+
+	scene.destroy();
 }
 

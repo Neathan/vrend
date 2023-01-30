@@ -16,6 +16,15 @@
 #include "graphics/descriptors.h"
 #include "graphics/material.h"
 
+#include "data/image.h"
+#include "data/texture.h"
+
+
+struct ViewUniformData {
+	glm::mat4 view;
+	glm::mat4 proj;
+};
+
 
 class Model;
 
@@ -31,8 +40,8 @@ public:
 
 	void addTransformCommand(const glm::mat4 &matrix);
 	void addModelCommand(const Model *model);
-	void updateMaterialSets(Material &material);
-	UniformData *getCurrentUniformBuffer() { return m_uniformBuffers[m_currentFrame].getData(); }
+	void initializeMaterials(Material &material);
+	ViewUniformData *getCurrentViewUniformBuffer() { return m_viewUniformBuffers[m_currentFrame].getData(); }
 
 	VkCommandBuffer prepareSingleCommand() const;
 	void executeSingleCommand(VkCommandBuffer commandBuffer) const;
@@ -43,6 +52,7 @@ public:
 
 	VkCommandBuffer getCurrentCommandBuffer() const { return m_commandBuffers[m_currentFrame]; }
 
+	static const int MAX_FRAMES_IN_FLIGHT = 2;
 private:
 	void configureDebugCallback(VkDebugUtilsMessengerCreateInfoEXT &debugCreateInfo);
 
@@ -71,8 +81,7 @@ private:
 	uint32_t m_currentFrame = 0;
 
 	// Descriptors
-// 	DescriptorManager m_descriptorManager;
-	std::vector<UniformBuffer> m_uniformBuffers;
+	std::vector<UniformBuffer<ViewUniformData>> m_viewUniformBuffers;
 	std::vector<VkDescriptorSet> m_uniformSets;
 
 	DescriptorLayoutCache m_descriptorLayoutCache;
@@ -80,6 +89,4 @@ private:
 
 	// Render state variables
 	uint32_t m_imageIndex;
-
-	static const int MAX_FRAMES_IN_FLIGHT = 2;
 };

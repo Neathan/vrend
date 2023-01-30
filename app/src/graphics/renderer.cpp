@@ -59,7 +59,7 @@ Renderer::~Renderer() {
 	// TODO: destroy m_uniformSets?
 	// TODO: destroy material sets?
 	
-	for (auto &uniformBuffer : m_uniformBuffers) {
+	for (auto &uniformBuffer : m_viewUniformBuffers) {
 		uniformBuffer.destroy();
 	}
 
@@ -162,12 +162,12 @@ void Renderer::init(const AppInfo& info, GLFWwindow *window) {
 	// Create uniform (view storage)
 	VkDescriptorSetLayout viewLayout;
 	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-		m_uniformBuffers.emplace_back(m_device);
+		m_viewUniformBuffers.emplace_back(m_device);
 
 		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = m_uniformBuffers[i].getBuffer();
+		bufferInfo.buffer = m_viewUniformBuffers[i].getBuffer();
 		bufferInfo.offset = 0;
-		bufferInfo.range = m_uniformBuffers[i].getSize();
+		bufferInfo.range = m_viewUniformBuffers[i].getSize();
 
 		VkDescriptorSet uniformSet;
 		DescriptorBuilder::begin(&m_descriptorLayoutCache, &m_descriptorAllocator)
@@ -181,6 +181,10 @@ void Renderer::init(const AppInfo& info, GLFWwindow *window) {
 	DescriptorBuilder::begin(&m_descriptorLayoutCache, &m_descriptorAllocator)
 		.bindDummy(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
 		.bindDummy(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+		.bindDummy(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+		.bindDummy(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+		.bindDummy(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+		.bindDummy(6, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
 		.buildLayout(imageLayout);
 
 	std::vector<VkDescriptorSetLayout> descriptorSetLayouts = { viewLayout, imageLayout };
@@ -373,10 +377,15 @@ void Renderer::addTransformCommand(const glm::mat4 &matrix) {
 
 void Renderer::addModelCommand(const Model *model) {
 	for (const auto &[nodeIndex, meshCollection] : model->getMeshes()) {
-		
-		vkCmdBindDescriptorSets(m_commandBuffers[m_currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.getLayout(), 1, 1, &(model->getMaterials()[0].sets[m_currentFrame]), 0, nullptr);
-
 		for (const auto &mesh : meshCollection) {
+
+			const auto &material = model->getMaterials()[mesh.materialIndex];
+			vkCmdBindDescriptorSets(m_commandBuffers[m_currentFrame],
+				VK_PIPELINE_BIND_POINT_GRAPHICS,
+				m_pipeline.getLayout(), 1, 1,
+				&material.sets[m_currentFrame],
+				0,
+				nullptr);
 
 			vkCmdBindVertexBuffers(m_commandBuffers[m_currentFrame], 0, 3, model->getVertexBufferAsArray().data(), mesh.getVertexOffsets().data());  // TODO: Offset: Add other primitives (normal, texture coordinate etc)
 			vkCmdBindIndexBuffer(m_commandBuffers[m_currentFrame], model->getVertexBuffer(), mesh.getIndexOffset(), VK_INDEX_TYPE_UINT16);
@@ -386,23 +395,46 @@ void Renderer::addModelCommand(const Model *model) {
 	}
 }
 
-void Renderer::updateMaterialSets(Material& material) {
+void Renderer::initializeMaterials(Material& material) {
 	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-		VkDescriptorImageInfo albedoImageInfo{};
-		albedoImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		albedoImageInfo.imageView = material.albedo.view;
-		albedoImageInfo.sampler = material.albedo.sampler;
+		VkDescriptorImageInfo colorImageInfo{};
+		colorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		colorImageInfo.imageView = material.colorTexture.getView();
+		colorImageInfo.sampler = material.colorTexture.getSampler();
+
+		VkDescriptorImageInfo metallicRoughnessImageInfo{};
+		metallicRoughnessImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		metallicRoughnessImageInfo.imageView = material.metallicRoughnessTexture.getView();
+		metallicRoughnessImageInfo.sampler = material.metallicRoughnessTexture.getSampler();
 
 		VkDescriptorImageInfo normalImageInfo{};
 		normalImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		normalImageInfo.imageView = material.normal.view;
-		normalImageInfo.sampler = material.normal.sampler;
+		normalImageInfo.imageView = material.normalTexture.getView();
+		normalImageInfo.sampler = material.normalTexture.getSampler();
 
+		VkDescriptorImageInfo occlusionImageInfo{};
+		occlusionImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		occlusionImageInfo.imageView = material.occlusionTexture.getView();
+		occlusionImageInfo.sampler = material.occlusionTexture.getSampler();
+
+		VkDescriptorImageInfo emissiveImageInfo{};
+		emissiveImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		emissiveImageInfo.imageView = material.emissiveTexture.getView();
+		emissiveImageInfo.sampler = material.emissiveTexture.getSampler();
+
+		VkDescriptorBufferInfo materialBufferInfo{};
+		materialBufferInfo.buffer = material.propertiesBuffers[i].getBuffer();
+		materialBufferInfo.offset = 0;
+		materialBufferInfo.range = material.propertiesBuffers[i].getSize();
 
 		VkDescriptorSet materialSet;
 		DescriptorBuilder::begin(&m_descriptorLayoutCache, &m_descriptorAllocator)
-			.bindImage(1, &albedoImageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-			.bindImage(2, &normalImageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+			.bindImage(1, &colorImageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+			.bindImage(2, &metallicRoughnessImageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+			.bindImage(3, &normalImageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+			.bindImage(4, &occlusionImageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+			.bindImage(5, &emissiveImageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+			.bindBuffer(6, &materialBufferInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
 			.build(materialSet);
 		material.sets.push_back(materialSet);
 	}

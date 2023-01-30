@@ -5,9 +5,9 @@
 #include "log.h"
 
 
-uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, const Device &device) {
+uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice device) {
 	VkPhysicalDeviceMemoryProperties memProperties;
-	vkGetPhysicalDeviceMemoryProperties(device.getPhysicalDevice(), &memProperties);
+	vkGetPhysicalDeviceMemoryProperties(device, &memProperties);
 
 	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
 		if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {

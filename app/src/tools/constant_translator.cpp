@@ -12,6 +12,10 @@ VkFilter convertGLFilterToVulkan(int value) {
 	case 9729: // GL_LINEAR
 		return VK_FILTER_LINEAR;
 
+	case 9986: // GL_NEAREST_MIPMAP_LINEAR
+		LOG_WARN("Unssuported filter 'GL_NEAREST_MIPMAP_LINEAR' used. Using GL_LINEAR instead.");
+		return VK_FILTER_LINEAR;
+
 	case -1:
 		LOG_DEBUG("OpenGL filter constant -1 was converted to VK_FILTER_LINEAR");
 		return VK_FILTER_LINEAR;

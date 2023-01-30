@@ -54,3 +54,7 @@ void Scene::render(Renderer &renderer) {
 		renderer.addModelCommand(modelComponent.model.get());
 	}
 }
+
+void Scene::destroy() {
+	m_registry.clear();
+}

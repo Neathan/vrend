@@ -4,9 +4,10 @@
 
 #include <vector>
 
-#include "graphics/image.h"
-#include "graphics/texture.h"
+#include "data/image.h"
+#include "data/texture.h"
 #include "tools/constant_translator.h"
+#include "tools/convert_vector.h"
 #include "log.h"
 
 std::vector<std::byte> extractData(const tinygltf::Buffer &buffer, const tinygltf::BufferView &bufferView, size_t bufferViewOffset) {
@@ -67,7 +68,9 @@ std::vector<Mesh> convertToModelSourceMeshes(const tinygltf::Mesh &mesh, const t
 			baseOffset + positionData.size() + textureCoordinateData.size() + normalData.size(),
 			indexData.size(),
 
-			indicesAccessor.count
+			indicesAccessor.count,
+
+			primitive.material
 		});
 	}
 
@@ -85,8 +88,8 @@ void processNode(const tinygltf::Node &node, const tinygltf::Model &model, std::
 	}
 }
 
-std::vector<Image> getModelImages(const tinygltf::Model& model, std::vector<std::byte>& imageData) {
-	std::vector<Image> images;
+std::vector<ModelImageData> getModelImages(const tinygltf::Model& model, std::vector<std::byte>& imageData) {
+	std::vector<ModelImageData> images;
 	images.reserve(model.images.size());
 
 	for (const auto &image : model.images) {
@@ -108,8 +111,8 @@ std::vector<Image> getModelImages(const tinygltf::Model& model, std::vector<std:
 	return images;
 }
 
-std::vector<TextureData> getModelTextures(const tinygltf::Model &model) {
-	std::vector<TextureData> textures;
+std::vector<ModelTextureData> getModelTextures(const tinygltf::Model &model) {
+	std::vector<ModelTextureData> textures;
 	textures.reserve(model.textures.size());
 
 	for (const auto &texture : model.textures) {
@@ -119,25 +122,40 @@ std::vector<TextureData> getModelTextures(const tinygltf::Model &model) {
 
 		textures.push_back({
 			texture.source,
-			convertGLFilterToVulkan(sampler.magFilter),
-			convertGLFilterToVulkan(sampler.minFilter),
-			convertGLWrapModeToVulkan(sampler.wrapS),
-			convertGLWrapModeToVulkan(sampler.wrapT),
-			VK_SAMPLER_ADDRESS_MODE_REPEAT
+			ImageFormat::SRGB, // Needs to be corrected by material
+			TextureProperties {
+				convertGLFilterToVulkan(sampler.magFilter),
+				convertGLFilterToVulkan(sampler.minFilter),
+				convertGLWrapModeToVulkan(sampler.wrapS),
+				convertGLWrapModeToVulkan(sampler.wrapT),
+				VK_SAMPLER_ADDRESS_MODE_REPEAT
+			}
 		});
 	}
 
 	return textures;
 }
 
-std::vector<MaterialData> getModelMaterials(const tinygltf::Model &model) {
-	std::vector<MaterialData> materials;
+std::vector<ModelMaterialData> getModelMaterials(const tinygltf::Model &model) {
+	std::vector<ModelMaterialData> materials;
 	materials.reserve(model.materials.size());
+
+	// TODO: Normal scale and occlusion strength support
 
 	for (const auto &material : model.materials) {
 		materials.push_back({
 			material.pbrMetallicRoughness.baseColorTexture.index,
-			material.normalTexture.index
+			material.pbrMetallicRoughness.metallicRoughnessTexture.index,
+			material.normalTexture.index,
+			material.occlusionTexture.index,
+			material.emissiveTexture.index,
+			MaterialProperties {
+				toVec4(material.pbrMetallicRoughness.baseColorFactor),
+				static_cast<float>(material.pbrMetallicRoughness.metallicFactor),
+				static_cast<float>(material.pbrMetallicRoughness.roughnessFactor),
+				glm::vec4(toVec3(material.emissiveFactor), -1),
+				material.doubleSided
+			}
 		});
 	}
 	return materials;
@@ -175,10 +193,19 @@ std::unique_ptr<ModelSource> convertToModelSource(const std::string &path) {
 	}
 
 	std::vector<std::byte> imageData;
-	std::vector<Image> images = getModelImages(model, imageData);
+	std::vector<ModelImageData> images = getModelImages(model, imageData);
 
-	std::vector<TextureData> textures = getModelTextures(model);
-	std::vector<MaterialData> materials = getModelMaterials(model);
+	std::vector<ModelTextureData> textures = getModelTextures(model);
+	std::vector<ModelMaterialData> materials = getModelMaterials(model);
+
+	for (const auto &material : materials) {
+		if (material.metallicRoughnessTexture != -1)
+			textures[material.metallicRoughnessTexture].format = ImageFormat::LINEAR;
+		if (material.normalTexture != -1)
+			textures[material.normalTexture].format = ImageFormat::LINEAR;
+		if (material.occlusionTexture != -1)
+			textures[material.occlusionTexture].format = ImageFormat::LINEAR;
+	}
 
 	return std::make_unique<ModelSource>(vertexData, imageData, modelMeshes, images, textures, materials);
 }
