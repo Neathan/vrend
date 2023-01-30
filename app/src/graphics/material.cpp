@@ -2,11 +2,11 @@
 
 
 void Material::destroy(VkDevice device) {
-	colorTexture.destroy(device);
-	metallicRoughnessTexture.destroy(device);
-	normalTexture.destroy(device);
-	occlusionTexture.destroy(device);
-	emissiveTexture.destroy(device);
+	if(!colorTexture.isDefault()) colorTexture.destroy(device);
+	if (!metallicRoughnessTexture.isDefault()) metallicRoughnessTexture.destroy(device);
+	if (!normalTexture.isDefault()) normalTexture.destroy(device);
+	if (!occlusionTexture.isDefault()) occlusionTexture.destroy(device);
+	if (!emissiveTexture.isDefault()) emissiveTexture.destroy(device);
 
 	for (auto &buffer : propertiesBuffers) {
 		buffer.destroy();

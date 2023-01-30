@@ -90,6 +90,11 @@ AssetManager::AssetManager(Renderer *renderer) : m_renderer(renderer) {
 	m_defaultNormalTexture = loadTexture(m_defaultNormalImage, TextureProperties{});
 	m_defaultOcclusionTexture = loadTexture(m_defaultOcclusionImage, TextureProperties{});
 	m_defaultEmissiveTexture = loadTexture(m_defaultEmissiveImage, TextureProperties{});
+
+	m_defaultMetallicRoughnessTexture.setDefault(true);
+	m_defaultNormalTexture.setDefault(true);
+	m_defaultOcclusionTexture.setDefault(true);
+	m_defaultEmissiveTexture.setDefault(true);
 }
 
 void AssetManager::destroy() {

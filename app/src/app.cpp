@@ -86,6 +86,7 @@ void App::start() {
 	// Wait for queue completion, ensures clean shutdown
 	m_renderer.waitForIdle();
 
+	assetManager.destroy();
 	scene.destroy();
 }
 

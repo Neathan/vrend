@@ -19,6 +19,9 @@ public:
 
 	void destroy(VkDevice device);
 
+	void setDefault(bool state) { m_default = state; }
+	bool isDefault() const { return m_default; }
+
 	VkImageView getView() const { return m_view; }
 	VkSampler getSampler() const { return m_sampler; }
 private:
@@ -26,4 +29,6 @@ private:
 
 	VkImageView m_view = VK_NULL_HANDLE;
 	VkSampler m_sampler = VK_NULL_HANDLE;
+
+	bool m_default = false;
 };
