@@ -424,6 +424,7 @@ std::unique_ptr<Model> AssetManager::loadModel(const ModelSource &modelSource) {
 		vertexBuffer,
 		m_renderer->getDevice().getLogicalDevice(),
 		modelSource.getMeshes(),
+		modelSource.getMeshMatricies(),
 		images,
 		materials);
 }

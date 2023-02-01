@@ -375,9 +375,12 @@ void Renderer::addTransformCommand(const glm::mat4 &matrix) {
 	vkCmdPushConstants(m_commandBuffers[m_currentFrame], m_pipeline.getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &matrix);
 }
 
-void Renderer::addModelCommand(const Model *model) {
+void Renderer::addModelCommand(const Model *model, const glm::mat4 &matrix) {
 	for (const auto &[nodeIndex, meshCollection] : model->getMeshes()) {
-		for (const auto &mesh : meshCollection) {
+		for (int meshIndex = 0; meshIndex < meshCollection.size(); ++meshIndex) {
+			const auto &mesh = meshCollection[meshIndex];
+
+			addTransformCommand(matrix * model->getMeshMatricies().at(meshIndex));
 
 			const auto &material = model->getMaterials()[mesh.materialIndex];
 			vkCmdBindDescriptorSets(m_commandBuffers[m_currentFrame],

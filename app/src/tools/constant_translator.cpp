@@ -15,6 +15,9 @@ VkFilter convertGLFilterToVulkan(int value) {
 	case 9986: // GL_NEAREST_MIPMAP_LINEAR
 		LOG_WARN("Unssuported filter 'GL_NEAREST_MIPMAP_LINEAR' used. Using GL_LINEAR instead.");
 		return VK_FILTER_LINEAR;
+	case 9987: // GL_LINEAR_MIPMAP_LINEAR
+		LOG_WARN("Unssuported filter 'GL_LINEAR_MIPMAP_LINEAR' used. Using GL_LINEAR instead.");
+		return VK_FILTER_LINEAR;
 
 	case -1:
 		LOG_DEBUG("OpenGL filter constant -1 was converted to VK_FILTER_LINEAR");
@@ -24,7 +27,6 @@ VkFilter convertGLFilterToVulkan(int value) {
 	default:
 		LOG_ERROR("Failed to convert OpenGL filter value to vulkan. Value: {}", value);
 		throw std::runtime_error("Failed to convert OpenGL filter value to vulkan");
-		break;
 	}
 }
 
@@ -48,6 +50,48 @@ VkSamplerAddressMode convertGLWrapModeToVulkan(int value) {
 	default:
 		LOG_ERROR("Failed to convert OpenGL wrap mode value to vulkan. Value: {}", value);
 		throw std::runtime_error("Failed to convert OpenGL wrap mode value to vulkan");
-		break;
+	}
+}
+
+size_t componentByteSize(int value) {
+	switch (value) {
+	case 5120:
+	case 5121: return 1;
+	case 5122:
+	case 5123: return 2;
+	case 5124:
+	case 5125:
+	case 5126: return 4;
+	case 5130: return 8;
+	default:
+		LOG_ERROR("Failed to convert OpenGL component type to byte size. Value: {}", value);
+		throw std::runtime_error("Failed to convert OpenGL component type to byte size");
+	}
+}
+
+size_t componentTypeComponents(int value) {
+#define TINYGLTF_TYPE_VEC2 (2)
+#define TINYGLTF_TYPE_VEC3 (3)
+#define TINYGLTF_TYPE_VEC4 (4)
+#define TINYGLTF_TYPE_MAT2 (32 + 2)
+#define TINYGLTF_TYPE_MAT3 (32 + 3)
+#define TINYGLTF_TYPE_MAT4 (32 + 4)
+#define TINYGLTF_TYPE_SCALAR (64 + 1)
+#define TINYGLTF_TYPE_VECTOR (64 + 4)
+#define TINYGLTF_TYPE_MATRIX (64 + 16)
+
+	switch (value) {
+	case 2: return 2;
+	case 3: return 3;
+	case 4: return 4;
+	case 32 + 2: return 2 * 2;
+	case 32 + 3: return 3 * 3;
+	case 32 + 4: return 4 * 4;
+	case 64 + 1: return 1;
+// 	case 64 + 4: return 4;
+// 	case 64 + 16: return 4 * 4;
+	default:
+		LOG_ERROR("Failed to convert OpenGL component type to component count. Value: {}", value);
+		throw std::runtime_error("Failed to convert OpenGL component type to component count");
 	}
 }

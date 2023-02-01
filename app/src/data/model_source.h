@@ -41,14 +41,18 @@ struct ModelMaterialData {
 // Stores model data in engine format
 class ModelSource {
 public:
-	ModelSource(const std::vector<std::byte> &vertexData,
-		const std::vector<std::byte> &imageData,
-		const std::unordered_map<int, std::vector<Mesh>> &meshes,
-		const std::vector<ModelImageData> &images,
-		const std::vector<ModelTextureData> &textures,
-		const std::vector<ModelMaterialData> &materials)
-		: m_vertexData(vertexData), m_imageData(imageData), m_meshes(meshes),
-		m_images(images), m_textures(textures), m_materials(materials) {}
+	ModelSource(
+		std::vector<std::byte> vertexData,
+		std::vector<std::byte> imageData,
+		std::unordered_map<int, std::vector<Mesh>> meshes,
+		std::unordered_map<int, glm::mat4> meshMatricies,
+		std::vector<ModelImageData> images,
+		std::vector<ModelTextureData> textures,
+		std::vector<ModelMaterialData> materials)
+		: m_vertexData(vertexData), m_imageData(imageData),
+		m_meshes(meshes), m_meshMatricies(meshMatricies),
+		m_images(images), m_textures(textures),
+		m_materials(materials) {}
 
 	const std::vector<std::byte> &getVertexData() const { return m_vertexData; }
 	const std::vector<std::byte> &getImageData() const { return m_imageData; }
@@ -58,11 +62,13 @@ public:
 	const std::vector<ModelMaterialData> &getMaterials() const { return m_materials; }
 
 	const std::unordered_map<int, std::vector<Mesh>> &getMeshes() const { return m_meshes; }
+	const std::unordered_map<int, glm::mat4> &getMeshMatricies() const { return m_meshMatricies; }
 private:
 	std::vector<std::byte> m_vertexData;
 	std::vector<std::byte> m_imageData;
 
 	std::unordered_map<int, std::vector<Mesh>> m_meshes;
+	std::unordered_map<int, glm::mat4> m_meshMatricies;
 
 	std::vector<ModelImageData> m_images;
 	std::vector<ModelTextureData> m_textures;

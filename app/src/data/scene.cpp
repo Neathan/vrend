@@ -50,8 +50,7 @@ void Scene::removeEntity(UUID id) {
 void Scene::render(Renderer &renderer) {
 	auto modelEntities = m_registry.view<TransformComponent, ModelComponent>();
 	for (const auto &[entity, transformComponent, modelComponent] : modelEntities.each()) {
-		renderer.addTransformCommand(transformComponent.matrix);
-		renderer.addModelCommand(modelComponent.model.get());
+		renderer.addModelCommand(modelComponent.model.get(), transformComponent.matrix);
 	}
 }
 

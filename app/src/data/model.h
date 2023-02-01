@@ -23,12 +23,14 @@ public:
 		VkBuffer vertexBuffer,
 		VkDevice device,
 		std::unordered_map<int, std::vector<Mesh>> meshes,
+		std::unordered_map<int, glm::mat4> meshMatrices,
 		std::vector<Image> images,
 		std::vector<Material> materials)
 		: m_modelMemory(modelMemory),
 		m_vertexBuffer(vertexBuffer),
 		m_device(device),
 		m_meshes(meshes),
+		m_meshMatrices(meshMatrices),
 		m_images(images),
 		m_materials(materials) {}
 
@@ -38,6 +40,7 @@ public:
 	std::array<VkBuffer, 3> getVertexBufferAsArray() const { return { m_vertexBuffer, m_vertexBuffer, m_vertexBuffer }; }
 
 	const std::unordered_map<int, std::vector<Mesh>> &getMeshes() const { return m_meshes; }
+	const std::unordered_map<int, glm::mat4> &getMeshMatricies() const { return m_meshMatrices; }
 
 	std::vector<Material> &getMaterials() { return m_materials; }
 	const std::vector<Material> &getMaterials() const { return m_materials; }
@@ -48,6 +51,7 @@ private:
 	VkDevice m_device = VK_NULL_HANDLE;
 
 	std::unordered_map<int, std::vector<Mesh>> m_meshes;
+	std::unordered_map<int, glm::mat4> m_meshMatrices;
 
 	std::vector<Image> m_images;
 	std::vector<Material> m_materials;

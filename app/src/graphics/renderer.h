@@ -39,7 +39,7 @@ public:
 	void waitForIdle();
 
 	void addTransformCommand(const glm::mat4 &matrix);
-	void addModelCommand(const Model *model);
+	void addModelCommand(const Model *model, const glm::mat4 &matrix = glm::mat4(1.0f));
 	void initializeMaterials(Material &material);
 	ViewUniformData *getCurrentViewUniformBuffer() { return m_viewUniformBuffers[m_currentFrame].getData(); }
 

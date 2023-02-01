@@ -47,13 +47,13 @@ void App::start() {
 
 	AssetManager assetManager(&m_renderer);
 
-	std::shared_ptr<Model> model = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/helmet.glb"));
-	std::shared_ptr<Model> model2 = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/cube_textured.glb"));
+	std::shared_ptr<Model> model = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/spheres.glb"));
+// 	std::shared_ptr<Model> model2 = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/cube_textured.glb"));
 
 	Entity entity1 = scene.createEntity();
-	Entity entity2 = scene.createEntity();
+// 	Entity entity2 = scene.createEntity();
 	entity1.addComponent<ModelComponent>(model);
-	entity2.addComponent<ModelComponent>(model2);
+// 	entity2.addComponent<ModelComponent>(model2);
 
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
@@ -76,7 +76,7 @@ void App::start() {
 		entity1.getComponent<TransformComponent>().matrix = glm::rotate(glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * glm::radians(45.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
 			glm::radians(270.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
-		entity2.getComponent<TransformComponent>().matrix = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+// 		entity2.getComponent<TransformComponent>().matrix = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
 		scene.render(m_renderer);
 

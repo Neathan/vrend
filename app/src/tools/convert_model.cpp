@@ -1,6 +1,8 @@
 #include "convert_model.h"
 
 #include <tiny_gltf.h>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 #include <vector>
 
@@ -10,9 +12,15 @@
 #include "tools/convert_vector.h"
 #include "log.h"
 
-std::vector<std::byte> extractData(const tinygltf::Buffer &buffer, const tinygltf::BufferView &bufferView, size_t bufferViewOffset) {
+std::vector<std::byte> extractData(const tinygltf::Buffer &buffer, const tinygltf::BufferView &bufferView, size_t bufferViewOffset, size_t size) {
 	const std::byte *base = reinterpret_cast<const std::byte *>(buffer.data.data()) + bufferViewOffset + bufferView.byteOffset;
-	return std::vector<std::byte>(base, base + bufferView.byteLength);
+	return std::vector<std::byte>(base, base + size);
+}
+
+size_t accessorByteSize(const tinygltf::Accessor &accessor) {
+	size_t componentSize = componentByteSize(accessor.componentType);
+	size_t componentTypeCount = componentTypeComponents(accessor.type);
+	return componentSize * componentTypeCount * accessor.count;
 }
 
 std::vector<Mesh> convertToModelSourceMeshes(const tinygltf::Mesh &mesh, const tinygltf::Model &model, std::vector<std::byte> &vertexData) {
@@ -31,16 +39,16 @@ std::vector<Mesh> convertToModelSourceMeshes(const tinygltf::Mesh &mesh, const t
 			// TODO: Check for if accessor is sparse, if its tightly packed (stride = 0) and if buffer view is targeted for indexed rendering
 
 			if (key == "POSITION")
-				positionData = extractData(buffer, bufferView, accessor.byteOffset);
+				positionData = extractData(buffer, bufferView, accessor.byteOffset, accessorByteSize(accessor));
 			else if (key == "TEXCOORD_0")
-				textureCoordinateData = extractData(buffer, bufferView, accessor.byteOffset);
+				textureCoordinateData = extractData(buffer, bufferView, accessor.byteOffset, accessorByteSize(accessor));
 			else if (key == "NORMAL")
-				normalData = extractData(buffer, bufferView, accessor.byteOffset);
+				normalData = extractData(buffer, bufferView, accessor.byteOffset, accessorByteSize(accessor));
 		}
 
 		const auto &indicesAccessor = model.accessors[primitive.indices];
 		const auto &indicesBufferView = model.bufferViews[indicesAccessor.bufferView];
-		indexData = extractData(model.buffers[indicesBufferView.buffer], indicesBufferView, indicesAccessor.byteOffset);
+		indexData = extractData(model.buffers[indicesBufferView.buffer], indicesBufferView, indicesAccessor.byteOffset, accessorByteSize(indicesAccessor));
 
 		// TODO: Make sure indicesAccessor.componentType is properly used
 
@@ -77,14 +85,40 @@ std::vector<Mesh> convertToModelSourceMeshes(const tinygltf::Mesh &mesh, const t
 	return meshes;
 }
 
-void processNode(const tinygltf::Node &node, const tinygltf::Model &model, std::vector<std::byte> &vertexData, std::unordered_map<int, std::vector<Mesh>> &modelMeshes) {
+glm::mat4 getNodeTransformationMatrix(const tinygltf::Node &node) {
+	if (node.matrix.size()) {
+		return toMat4(node.matrix);
+	}
+	glm::mat4 matrix(1.0f);
+	if (node.scale.size()) {
+		matrix = glm::scale(matrix, toVec3(node.scale));
+	}
+	if (node.rotation.size()) {
+		glm::vec4 rot = toVec4(node.rotation);
+		matrix *= glm::mat4_cast(glm::quat(rot.x, rot.y, rot.z, rot.w));
+	}
+	if (node.translation.size()) {
+		matrix = glm::translate(matrix, toVec3(node.translation));
+	}
+	return matrix;
+}
+
+void processNode(int nodeIndex, const tinygltf::Model &model, std::vector<std::byte> &vertexData,
+	std::unordered_map<int, std::vector<Mesh>> &modelMeshes, std::unordered_map<int, glm::mat4> &meshMatricies,
+	const glm::mat4& parentMatrix = glm::mat4(1.0f)) {
+
+	const tinygltf::Node &node = model.nodes[nodeIndex];
+
+	glm::mat4 transform = parentMatrix * getNodeTransformationMatrix(node);
+
 	if ((node.mesh >= 0) && (node.mesh < model.meshes.size())) {
 		const auto &mesh = model.meshes[node.mesh];
 		modelMeshes[node.mesh] = convertToModelSourceMeshes(mesh, model, vertexData);
+		meshMatricies[node.mesh] = transform;
 	}
 
 	for (int child : node.children) {
-		processNode(model.nodes[child], model, vertexData, modelMeshes);
+		processNode(child, model, vertexData, modelMeshes, meshMatricies, transform);
 	}
 }
 
@@ -183,13 +217,12 @@ std::unique_ptr<ModelSource> convertToModelSource(const std::string &path) {
 
 	std::vector<std::byte> vertexData;
 	std::unordered_map<int, std::vector<Mesh>> modelMeshes;
+	std::unordered_map<int, glm::mat4> meshMatricies;
 
 	const auto &scene = model.scenes[model.defaultScene];
 
 	for (size_t nodeIndex = 0; nodeIndex < scene.nodes.size(); ++nodeIndex) {
-		const auto &node = model.nodes[scene.nodes[nodeIndex]];
-
-		processNode(node, model, vertexData, modelMeshes);
+		processNode(scene.nodes[nodeIndex], model, vertexData, modelMeshes, meshMatricies);
 	}
 
 	std::vector<std::byte> imageData;
@@ -207,5 +240,5 @@ std::unique_ptr<ModelSource> convertToModelSource(const std::string &path) {
 			textures[material.occlusionTexture].format = ImageFormat::LINEAR;
 	}
 
-	return std::make_unique<ModelSource>(vertexData, imageData, modelMeshes, images, textures, materials);
+	return std::make_unique<ModelSource>(vertexData, imageData, modelMeshes, meshMatricies, images, textures, materials);
 }
