@@ -380,7 +380,7 @@ void Renderer::addModelCommand(const Model *model, const glm::mat4 &matrix) {
 		for (int meshIndex = 0; meshIndex < meshCollection.size(); ++meshIndex) {
 			const auto &mesh = meshCollection[meshIndex];
 
-			addTransformCommand(matrix * model->getMeshMatricies().at(meshIndex));
+			addTransformCommand(matrix * model->getMeshMatricies().at(nodeIndex));
 
 			const auto &material = model->getMaterials()[mesh.materialIndex];
 			vkCmdBindDescriptorSets(m_commandBuffers[m_currentFrame],
