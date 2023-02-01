@@ -70,16 +70,6 @@ size_t componentByteSize(int value) {
 }
 
 size_t componentTypeComponents(int value) {
-#define TINYGLTF_TYPE_VEC2 (2)
-#define TINYGLTF_TYPE_VEC3 (3)
-#define TINYGLTF_TYPE_VEC4 (4)
-#define TINYGLTF_TYPE_MAT2 (32 + 2)
-#define TINYGLTF_TYPE_MAT3 (32 + 3)
-#define TINYGLTF_TYPE_MAT4 (32 + 4)
-#define TINYGLTF_TYPE_SCALAR (64 + 1)
-#define TINYGLTF_TYPE_VECTOR (64 + 4)
-#define TINYGLTF_TYPE_MATRIX (64 + 16)
-
 	switch (value) {
 	case 2: return 2;
 	case 3: return 3;
