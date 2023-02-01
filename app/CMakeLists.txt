@@ -9,8 +9,6 @@ target_link_libraries(app PUBLIC spdlog)
 target_link_libraries(app PUBLIC tinygltf)
 target_link_libraries(app PUBLIC EnTT)
 
-target_link_libraries(app PUBLIC imgui)
-
 target_include_directories(app PUBLIC "src")
 
 target_compile_definitions(app PUBLIC GLFW_INCLUDE_NONE)

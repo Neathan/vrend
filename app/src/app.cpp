@@ -3,8 +3,6 @@
 #include <glad/vulkan.h>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <imgui.h>
-
 #include <stdexcept>
 
 #include "data/scene.h"
@@ -47,7 +45,7 @@ void App::start() {
 
 	AssetManager assetManager(&m_renderer);
 
-	std::shared_ptr<Model> model = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/spheres.glb"));
+	std::shared_ptr<Model> model = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/sponza.glb"));
 // 	std::shared_ptr<Model> model2 = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/cube_textured.glb"));
 
 	Entity entity1 = scene.createEntity();
