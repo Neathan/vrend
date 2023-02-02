@@ -72,7 +72,7 @@ void App::start() {
 		m_renderer.prepare();
 
 		entity1.getComponent<TransformComponent>().matrix = glm::rotate(glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * glm::radians(45.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
-			glm::radians(270.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+			glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
 // 		entity2.getComponent<TransformComponent>().matrix = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 

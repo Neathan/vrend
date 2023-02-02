@@ -54,6 +54,10 @@ std::vector<Mesh> convertToModelSourceMeshes(const tinygltf::Mesh &mesh, const t
 
 		// TODO: Extract image data
 
+		// Make sure data is aligned
+		for (size_t i = vertexData.size(); i % 4 != 0; ++i) {
+			vertexData.push_back(std::byte{0});
+		}
 
 		size_t baseOffset = vertexData.size();
 
