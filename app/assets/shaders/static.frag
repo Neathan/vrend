@@ -33,5 +33,5 @@ void main() {
 	float occlusion = texture(occlusionSampler, uv).r;
 	vec3 emissive = texture(emissiveSampler, uv).rgb;
 
-	fragColor = vec4(color.rgb * material.colorFactor.rgb * occlusion, 1.0);
+	fragColor = vec4(color.rgb * material.colorFactor.rgb * occlusion, color.a);
 }

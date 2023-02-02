@@ -46,16 +46,30 @@ void App::start() {
 	AssetManager assetManager(&m_renderer);
 
 	std::shared_ptr<Model> model = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/sponza.glb"));
-// 	std::shared_ptr<Model> model2 = assetManager.loadModel(assetManager.loadModelSource("assets/models/gltf/cube_textured.glb"));
 
 	Entity entity1 = scene.createEntity();
-// 	Entity entity2 = scene.createEntity();
 	entity1.addComponent<ModelComponent>(model);
-// 	entity2.addComponent<ModelComponent>(model2);
+
+	float lastTime = glfwGetTime();
+	float frameTime = 0;
+	int frameCounter = 0;
 
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
 		m_renderer.newFrame();
+
+		float currentTime = glfwGetTime();
+		float delta = currentTime - lastTime;
+		lastTime = currentTime;
+		++frameCounter;
+
+		frameTime += delta;
+		if (frameTime >= 1.0f) {
+			frameTime -= 1.0f;
+			LOG_INFO("FPS: {}", frameCounter);
+			frameCounter = 0;
+		}
+
 
 		ViewUniformData *viewData = m_renderer.getCurrentViewUniformBuffer();
 		viewData->view = glm::lookAt(
@@ -73,8 +87,6 @@ void App::start() {
 
 		entity1.getComponent<TransformComponent>().matrix = glm::rotate(glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * glm::radians(45.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
 			glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
-// 		entity2.getComponent<TransformComponent>().matrix = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
 		scene.render(m_renderer);
 
