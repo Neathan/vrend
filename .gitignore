@@ -3,3 +3,5 @@ out/
 .vs/
 app/assets/models
 app/assets/textures
+CMakeSettings.json
+
